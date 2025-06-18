@@ -19,9 +19,13 @@ def load_config(config_path=None):
             'enable_web_ui': True,
             'secret_key': 'default_fallback_secret_key_change_me'
         },
-        'web_auth': {
+        'web_auth': { # For Web UI login
             'username': 'admin',
             'password_hash': None,
+        },
+        'api_auth': { # For API token authentication
+            'static_token': None, # Should be set in config.yaml or env for API access
+            'header_name': 'X-API-KEY' # Default header to check for the token
         },
         'logging': {
             'level': 'INFO',
@@ -39,10 +43,13 @@ def load_config(config_path=None):
             if file_config:
                 for key, value in file_config.items():
                     if isinstance(value, dict) and key in config:
-                        # Ensure nested logging settings are updated, not overwritten
-                        if key == 'logging' and 'logging' in file_config:
-                             config['logging'].update(file_config['logging'])
-                        else:
+                        # Special handling for nested dicts to ensure deep merge for known sections
+                        if key in ['server', 'web_auth', 'api_auth', 'logging']:
+                             config[key].update(value)
+                        elif key == 'tools': # For tools, allow complete override or merge if needed
+                            # Current behavior is simple update, might need deep merge for tools too if complex.
+                            config[key].update(value)
+                        else: # General dict update
                             config[key].update(value)
                     else:
                         config[key] = value
@@ -53,15 +60,23 @@ def load_config(config_path=None):
         logging.error(f"Error parsing YAML configuration file {path}: {e}")
 
     # Override with environment variables
+    # Server settings
     config['server']['host'] = os.getenv('MCP_SERVER_HOST', config['server']['host'])
     config['server']['port'] = int(os.getenv('MCP_SERVER_PORT', config['server']['port']))
     config['server']['debug'] = os.getenv('MCP_SERVER_DEBUG', str(config['server']['debug'])).lower() == 'true'
     config['server']['enable_web_ui'] = os.getenv('MCP_ENABLE_WEB_UI', str(config['server']['enable_web_ui'])).lower() == 'true'
     config['server']['secret_key'] = os.getenv('MCP_SECRET_KEY', config['server']['secret_key'])
 
+    # Web Auth settings
     config['web_auth']['username'] = os.getenv('MCP_WEB_USERNAME', config['web_auth']['username'])
     config['web_auth']['password_hash'] = os.getenv('MCP_WEB_PASSWORD_HASH', config['web_auth']['password_hash'])
 
+    # API Auth settings
+    config['api_auth']['static_token'] = os.getenv('MCP_API_STATIC_TOKEN', config['api_auth']['static_token'])
+    config['api_auth']['header_name'] = os.getenv('MCP_API_HEADER_NAME', config['api_auth']['header_name'])
+
+
+    # Logging settings
     config['logging']['level'] = os.getenv('MCP_LOG_LEVEL', config['logging']['level']).upper()
     config['logging']['file'] = os.getenv('MCP_LOG_FILE', config['logging']['file'])
     config['logging']['format'] = os.getenv('MCP_LOG_FORMAT', config['logging']['format'])

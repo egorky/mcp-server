@@ -44,7 +44,7 @@ This will install Flask, Gunicorn, PyYAML, and other necessary packages.
 ### 2.5. Configure the MCP Server
 
 #### a. Create Configuration File
-Copy or create your configuration file at \`/opt/mcp-server/config/config.yaml\`. Start with the provided \`config.yaml.example\` or ensure your configuration is complete.
+Copy or create your configuration file at \`/opt/mcp-server/config/config.yaml\`. Start with the provided \`config.yaml.example\` (if available) or ensure your configuration is complete based on the default settings in `mcp_server/config.py` and the examples in the documentation.
 
 **Important Configuration Values:**
 
@@ -57,18 +57,25 @@ Copy or create your configuration file at \`/opt/mcp-server/config/config.yaml\`
     python /opt/mcp-server/mcp_server/utils/hash_password.py
     \`\`\`
     Copy the generated hash into your `config.yaml`.
-*   **`logging.file`**: Ensure the path is absolute (e.g., \`/var/log/mcp-server/mcp_server.log\`) and the \`mcpuser\` has write permissions to the directory.
-*   **`tools.script_runner.scripts_base_path`**: If using the script runner tool, ensure this path is correctly set and \`mcpuser\` has appropriate permissions to access/execute scripts within it.
+*   **`api_auth.static_token`**: **CRITICAL FOR PRODUCTION.** Set a strong, unique, random token for API authentication (e.g., using `openssl rand -hex 32`). Keep this token secure. This is required if you intend to use the HTTP API.
+*   **`api_auth.header_name`**: (Optional) Change if you prefer a different header for the API token (e.g., "Authorization" for "Bearer <token>"). Defaults to "X-API-KEY".
+*   **`logging.file`**: Ensure the path is absolute (e.g., \`/var/log/mcp-server/mcp_server.log\`) and the \`mcpuser\` has write permissions to the directory. Review `logging.max_bytes` and `logging.backup_count` for log rotation.
+*   **`tools.script_runner.scripts_base_path`**: If using the script runner tool, ensure this path is correctly set and \`mcpuser\` has appropriate permissions to access/execute scripts within it. Configure `default_timeout` for scripts.
+*   **`tools.api_caller`**: Configure `default_connect_timeout` and `default_read_timeout` for the API caller tool.
 
 #### b. Set File Permissions
 Ensure the \`mcpuser\` can read the configuration and write to the log directory/file:
 \`\`\`bash
 sudo chown -R mcpuser:mcpuser /opt/mcp-server
+# Ensure config.yaml is readable by mcpuser, but restrict others if sensitive:
+# sudo chmod 640 /opt/mcp-server/config/config.yaml
+# sudo chown mcpuser:mcpuser /opt/mcp-server/config/config.yaml (if group access is needed for mcpuser)
+
 sudo mkdir -p /var/log/mcp-server
 sudo chown mcpuser:mcpuser /var/log/mcp-server
 # If scripts_base_path is outside /opt/mcp-server, adjust its permissions too.
 \`\`\`
-**Note:** Be careful with permissions on your configuration file if it contains sensitive information.
+**Note:** Be very careful with permissions on your configuration file as it contains sensitive information like the secret key, password hash, and API token.
 
 ## 3. Systemd Service Configuration
 
@@ -96,14 +103,23 @@ WorkingDirectory=/opt/mcp-server
 # Command to start the server using Gunicorn
 # Ensure the path to gunicorn and app.py (or module:app) are correct
 # The path to gunicorn should be from the virtual environment
-ExecStart=/opt/mcp-server/venv/bin/gunicorn --workers 3     --bind unix:/run/mcp-server/mcp-server.sock     --log-level info     --access-logfile /var/log/mcp-server/gunicorn.access.log     --error-logfile /var/log/mcp-server/gunicorn.error.log     'mcp_server.app:app'
+ExecStart=/opt/mcp-server/venv/bin/gunicorn --workers 3 \
+    --bind unix:/run/mcp-server/mcp-server.sock \
+    --log-level info \
+    --access-logfile /var/log/mcp-server/gunicorn.access.log \
+    --error-logfile /var/log/mcp-server/gunicorn.error.log \
+    'mcp_server.app:app'
 
 # Alternatively, to bind to a TCP port (e.g., 5000) directly:
-# ExecStart=/opt/mcp-server/venv/bin/gunicorn --workers 3 #     --bind 0.0.0.0:5000 #     'mcp_server.app:app'
+# ExecStart=/opt/mcp-server/venv/bin/gunicorn --workers 3 \
+#     --bind 0.0.0.0:5000 \
+#     'mcp_server.app:app'
 # Make sure the port matches your config.yaml or that Gunicorn overrides it.
 
-# Environment variables (if needed, e.g., for MCP_CONFIG_PATH)
-# Environment="MCP_CONFIG_PATH=/opt/mcp-server/config/config.yaml"
+# Environment variables (if needed)
+# Example: Override config path or set API token via environment
+# Environment="MCP_CONFIG_PATH=/opt/mcp-server/config/production_config.yaml"
+# Environment="MCP_API_STATIC_TOKEN=your_secure_token_from_env"
 # Environment="FLASK_ENV=production" # Good practice
 
 # Restart policy
@@ -111,16 +127,10 @@ Restart=always
 RestartSec=5s
 
 # Standard output and error
-# If using Gunicorn's log files, journald might primarily capture Gunicorn's own startup/shutdown messages.
-# If Gunicorn logs to stdout/stderr (default if no log files specified), journald captures app logs.
 StandardOutput=journal
 StandardError=journal
 
 # Ensure the /run directory for the socket exists if using UNIX socket
-# This can be handled by a tmpfiles.d configuration or by creating it manually
-# and ensuring mcpuser has write access.
-# Example for tmpfiles.d (create /etc/tmpfiles.d/mcp-server.conf):
-# d /run/mcp-server 0755 mcpuser mcpuser -
 RuntimeDirectory=mcp-server
 RuntimeDirectoryMode=0755
 
@@ -135,7 +145,7 @@ WantedBy=multi-user.target
 *   `--bind 0.0.0.0:5000`: Alternatively, bind to a TCP port.
 *   `--log-level info`: Gunicorn's log level.
 *   `--access-logfile` & `--error-logfile`: Paths for Gunicorn's logs. Ensure `mcpuser` can write here.
-*   `'mcp_server.app:app'`: Path to your Flask application instance (`app`) within your module (`mcp_server.app`).
+*   `'mcp_server.app:app'`: Path to your Flask application instance (`app`) within your module (`mcp_server.app`). This assumes `mcp_server.app.main()` will be called or the Flask `app` object is directly accessible.
 
 ### 3.2. Reload Systemd, Enable and Start the Service
 \`\`\`bash
@@ -204,12 +214,12 @@ Enable the site: \`sudo ln -s /etc/nginx/sites-available/mcp-server /etc/nginx/s
     *   Run as a non-root user (\`mcpuser\`).
     *   Keep your system and dependencies updated.
     *   Use a firewall (e.g., \`ufw\`) to restrict access to necessary ports.
-    *   Ensure your \`config.yaml\` (especially \`secret_key\` and password hash) is secure and has restricted read access.
+    *   Ensure your \`config.yaml\` (especially \`secret_key\`, \`password_hash\`, and especially the \`api_auth.static_token\`) is secure and has restricted read access.
 *   **Logging**:
-    *   Application logs are configured in \`config.yaml\` (\`logging.file\`).
+    *   Application logs are configured in \`config.yaml\` (\`logging.file\`, format, rotation).
     *   Gunicorn logs can be configured in the systemd service file or a Gunicorn config file.
     *   Systemd journal (via \`journalctl\`) captures service stdout/stderr.
-*   **Configuration Management**: For production, consider how you manage \`config.yaml\`. Avoid committing sensitive data directly to version control if the repository is public or shared. Use environment variables (as supported by \`config.py\`) or a secure configuration management tool.
+*   **Configuration Management**: For production, consider how you manage \`config.yaml\`. Avoid committing sensitive data directly to version control if the repository is public or shared. Use environment variables (as supported by \`config.py\`) or a secure configuration management tool for sensitive items like tokens and secret keys.
 *   **Resource Limits**: You can set resource limits (CPU, memory) in the systemd service file if needed.
 
 This guide provides a comprehensive starting point. Adapt it to your specific environment and security requirements.

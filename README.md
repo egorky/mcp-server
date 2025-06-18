@@ -9,8 +9,8 @@ MCP Server is a configurable server designed to execute various tools such as sc
 *   **Web Interface**: User-friendly UI for listing, configuring, and executing tools.
     *   Secure login with username and password.
     *   Option to disable the web interface.
-*   **HTTP API**: Programmatic access to list and execute tools.
-*   **Flexible Configuration**: Configure server, authentication, logging, and tools via YAML file, environment variables, or CLI arguments.
+*   **HTTP API**: Programmatic access to list and execute tools, secured by token authentication.
+*   **Flexible Configuration**: Configure server, authentication (web & API), logging, and tools via YAML file, environment variables, or CLI arguments.
 *   **Enhanced Logging**: Multi-level logging to console and rotating log files.
 *   **Service Deployment**: Includes documentation for deployment as a systemd service using Gunicorn.
 
@@ -62,6 +62,13 @@ MCP Server is a configurable server designed to execute various tools such as sc
       # Generate a hash for your password (see below)
       password_hash: "pbkdf2:sha256:260000\$yourSalt\$yourHash..."
 
+    api_auth:
+      # Static token for API authentication. Generate a secure random string.
+      # Example: openssl rand -hex 32
+      static_token: "your_secure_api_token_here" # CHANGE THIS!
+      # Header name for the API token. Default is 'X-API-KEY'.
+      # header_name: "X-API-KEY"
+
     logging:
       level: "INFO"
       file: "mcp_server.log"
@@ -70,10 +77,12 @@ MCP Server is a configurable server designed to execute various tools such as sc
       backup_count: 5
 
     tools:
-      # Example: Configure the script_runner tool if you have scripts in /app/mcp_scripts
-      # script_runner:
-      #   scripts_base_path: "/app/mcp_scripts"
-      #   default_timeout: 60
+      script_runner:
+        scripts_base_path: "/app/mcp_scripts" # Path to your scripts
+        default_timeout: 60 # Default timeout for scripts
+      api_caller:
+        default_connect_timeout: 10 # Default connect timeout for API calls
+        default_read_timeout: 30    # Default read timeout for API calls
     \`\`\`
 
 2.  **Set `secret_key`**: Update `server.secret_key` in `config/config.yaml` with a long, random string.
@@ -86,6 +95,10 @@ MCP Server is a configurable server designed to execute various tools such as sc
         python mcp_server/utils/hash_password.py
         \`\`\`
         Enter your desired password when prompted, and copy the generated hash into `config.yaml`.
+
+4.  **Set API Authentication Token**:
+    *   Update `api_auth.static_token` in `config/config.yaml` with a strong, unique, and randomly generated token.
+    *   (Optional) Customize `api_auth.header_name` if you prefer a different header for the API token.
 
 ### Running the Development Server
 
@@ -100,10 +113,13 @@ The server will start, and you can access it at \`http://localhost:5000\` (or th
 The server is configured primarily through \`config/config.yaml\`. Key sections:
 *   **`server`**: Host, port, debug mode, web UI toggle, Flask secret key.
 *   **`web_auth`**: Username and hashed password for the web interface.
+*   **`api_auth`**: Configuration for API token authentication, including `static_token` and `header_name`.
 *   **`logging`**: Log level, file path, format, and rotation settings.
-*   **`tools`**: Configuration specific to each loaded tool plugin (e.g., `script_runner.scripts_base_path`).
+*   **`tools`**: Configuration specific to each loaded tool plugin
+    (e.g., `script_runner.default_timeout`, `api_caller.default_connect_timeout`).
+    Some tools also support per-execution parameters (e.g., `script_runner` can take a `timeout` in its execution payload).
 
-Settings can also be overridden by environment variables (e.g., \`MCP_SERVER_PORT\`) or command-line arguments. See comments in `config.py` and `config.yaml` for more details.
+Settings can also be overridden by environment variables (e.g., \`MCP_SERVER_PORT\`, `MCP_API_STATIC_TOKEN`) or command-line arguments. See comments in `config.py` and `config.yaml` for more details.
 
 ## Web Interface
 
@@ -113,23 +129,30 @@ Settings can also be overridden by environment variables (e.g., \`MCP_SERVER_POR
 
 ## HTTP API
 
-The server exposes a simple HTTP API:
+The server exposes an HTTP API, **which requires token authentication for all endpoints except \`/health\`**.
+The API token must be passed in a request header. By default, this is \`X-API-KEY: <your_token>\`.
+This can be configured via \`api_auth.header_name\` in \`config.yaml\` (e.g., to use \`Authorization: Bearer <your_token>\`).
 
+Key endpoints:
 *   **`GET /tools`**: Lists all available tools, their descriptions, and parameter specifications.
+    *   Requires API token authentication.
+    Example using \`curl\` (replace \`<token>\` with your actual API token):
+    \`\`\`bash
+# List tools (using default X-API-KEY header)
+curl -H "X-API-KEY: <token>" http://localhost:5000/tools
+    \`\`\`
 *   **`POST /tools/<tool_name>/execute`**: Executes the specified tool.
+    *   Requires API token authentication.
     *   **Request Body (JSON)**: Parameters for the tool.
     *   **Response (JSON)**: Result of the execution, including \`success\` status and \`data\` or \`error\`.
-
-Example using \`curl\` (replace \`yourtool\` and params):
-\`\`\`bash
-# List tools
-curl http://localhost:5000/tools
-
-# Execute a tool (e.g., script_runner with a script named 'hello.sh')
+    Example using \`curl\` (replace \`<token>\`, \`script_runner\`, and params):
+    \`\`\`bash
+# Execute script_runner (using default X-API-KEY header)
 curl -X POST -H "Content-Type: application/json" \
-     -d '{"script_name": "hello.sh", "arguments": "World"}' \
+     -H "X-API-KEY: <token>" \
+     -d '{"script_name": "hello.sh", "arguments": "World", "timeout": 30}' \
      http://localhost:5000/tools/script_runner/execute
-\`\`\`
+    \`\`\`
 
 ## Tool Plugins
 
@@ -137,6 +160,8 @@ MCP Server uses a plugin architecture for tools.
 *   Plugins are Python classes inheriting from \`mcp_server.tools.base_tool.BaseTool\`.
 *   They are located in the \`mcp_server/tools/plugins/\` directory.
 *   Each plugin must implement methods like \`get_name()\`, \`get_description()\`, \`get_config_spec()\`, and \`execute()\`.
+*   The `api_caller` tool supports configurable default connect and read timeouts, and these can also be overridden per execution.
+*   The `script_runner` tool supports a configurable default execution timeout, which can also be overridden per execution.
 *   See existing plugins (\`script_runner.py\`, \`api_caller.py\`) as examples.
 
 ## Deployment

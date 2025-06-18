@@ -14,6 +14,14 @@ web_auth:
   password_hash: "pbkdf2:sha256:260000\$exampleSalt\$9a3examplehash..." # Replace with a real hash
   # For testing, you can temporarily use .env for MCP_WEB_PASSWORD="your_password"
 
+api_auth:
+  # Static token for API authentication. Generate a secure random string for this.
+  # Example: openssl rand -hex 32
+  static_token: "your_very_secret_api_token_here" # CHANGE THIS!
+  # Header name to look for the API token. Default is X-API-KEY.
+  # Can also use "Authorization" and then the token should be "Bearer <your_token>"
+  header_name: "X-API-KEY"
+
 logging:
   level: "INFO"
   file: "mcp_server.log"
@@ -26,7 +34,14 @@ logging:
 tools:
   script_runner:
     scripts_base_path: "/app/mcp_scripts" # Adjusted path
-    default_timeout: 60
+    default_timeout: 60 # Default execution timeout for scripts in seconds. Can be overridden per execution.
 
   api_caller:
-    default_timeout: 30
+    default_connect_timeout: 10 # Default connection timeout in seconds.
+    default_read_timeout: 30    # Default read timeout in seconds.
+    # These can be overridden by per-execution 'connect_timeout' and 'read_timeout' parameters.
+    # An overall 'timeout' parameter can also be provided per-execution.
+    # If an old 'default_timeout' (singular) is present here and these specific ones are not,
+    # it might be used as a fallback by the tool, but migrating to specific timeouts is recommended.
+
+[end of config/config.yaml]
