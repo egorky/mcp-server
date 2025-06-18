@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - MCP Server{% endblock %}
+
+{% block content %}
+<h2>MCP Tool Dashboard</h2>
+
+<div id="tool-list-container">
+    <h3>Available Tools</h3>
+    <select id="tool-selector">
+        <option value="">-- Select a Tool --</option>
+    </select>
+</div>
+
+<div id="tool-config-container" style="display:none;">
+    <h3 id="selected-tool-name"></h3>
+    <p id="selected-tool-description"></p>
+    <h4>Parameters:</h4>
+    <form id="tool-execution-form">
+        <div id="tool-params-form-fields">
+            <!-- Parameters will be dynamically inserted here -->
+        </div>
+        <button type="submit">Execute Tool</button>
+    </form>
+</div>
+
+<div id="tool-output-container" style="display:none;">
+    <h4>Output:</h4>
+    <pre id="tool-output-content"></pre>
+</div>
+{% endblock %}
+
+{% block scripts_extra %}
+<script>
+// Basic JavaScript for dashboard interaction will be in static/js/main.js
+// This script block can be used for page-specific JS if needed.
+document.addEventListener('DOMContentLoaded', function() {
+    // Initial load of tools will be handled by main.js
+    // For now, just ensuring the elements exist.
+    if(document.getElementById('tool-selector')) {
+        console.log("Dashboard elements loaded.");
+    }
+});
+</script>
+{% endblock %}

@@ -1,0 +1,26 @@
+body { font-family: sans-serif; margin: 0; background-color: #f4f4f4; color: #333; }
+.container { width: 80%; margin: auto; overflow: hidden; padding: 20px; background-color: #fff; min-height: 70vh;}
+nav { background: #333; color: #fff; padding: 10px 0; border-bottom: #0779e4 3px solid;}
+nav a { color: #fff; text-decoration: none; font-size: 1.2em; padding-left: 20px; }
+nav ul { padding: 0; margin: 0; float: right; padding-right: 20px;}
+nav ul li { display: inline; padding: 0 10px;}
+nav ul li a { color: #fff; text-decoration: none; }
+h2, h3, h4 { color: #333; }
+.alert { padding: 10px; margin-bottom: 15px; border: 1px solid transparent; border-radius: 4px; }
+.alert-success { color: #3c763d; background-color: #dff0d8; border-color: #d6e9c6; }
+.alert-danger { color: #a94442; background-color: #f2dede; border-color: #ebccd1; }
+.alert-info { color: #31708f; background-color: #d9edf7; border-color: #bce8f1; }
+form div { margin-bottom: 10px; }
+form label { display: block; margin-bottom: 5px; }
+form input[type="text"], form input[type="password"], form input[type="number"], form select, form textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    box-sizing: border-box;
+}
+form button {
+    background: #0779e4; color: #fff; padding: 10px 15px; border: none; border-radius: 4px; cursor: pointer;
+}
+form button:hover { background: #0056b3; }
+#tool-output-container pre { background-color: #eee; padding: 10px; border: 1px solid #ccc; white-space: pre-wrap; word-wrap: break-word; }
