@@ -144,12 +144,27 @@ MCP Server uses a plugin architecture for tools.
 For production deployments, it is recommended to run the MCP Server as a systemd service using a WSGI server like Gunicorn.
 See the detailed [Deployment Guide](docs/deployment.md).
 
-## Running Tests (Placeholder)
+## Running Tests
 
-(Instructions for running tests will be added once tests are implemented in Step 10.)
-\`\`\`bash
-# Example: pytest tests/
-\`\`\`
+This project uses \`pytest\` for testing.
+
+1.  **Ensure test dependencies are installed:**
+    \`\`\`bash
+    pip install pytest pytest-flask pytest-mock pytest-httpserver
+    \`\`\`
+    (These are included in \`requirements.txt\` if you installed everything.)
+
+2.  **Run tests from the project root directory:**
+    \`\`\`bash
+    # Ensure your virtual environment is active
+    pytest
+    \`\`\`
+    You can also run specific test files or use other \`pytest\` options:
+    \`\`\`bash
+    pytest tests/unit/test_config.py
+    pytest -k "login"  # Run tests with 'login' in their name
+    pytest -v         # Verbose output
+    \`\`\`
 
 ## License
 

@@ -1,0 +1,26 @@
+# Test-specific configuration
+server:
+  host: "127.0.0.1"
+  port: 5005 # Different port for tests
+  debug: true
+  enable_web_ui: true
+  secret_key: "test_secret_key_for_flask_sessions"
+
+web_auth:
+  username: "testuser"
+  password_hash: "" # Will be set by tests dynamically or use a known test hash
+
+logging:
+  level: "DEBUG" # More verbose for tests
+  file: "mcp_server_test.log"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s"
+  max_bytes: 102400 # Smaller for tests
+  backup_count: 1
+
+tools:
+  script_runner:
+    scripts_base_path: "tests/scripts" # Point to test scripts
+    default_timeout: 5 # Shorter timeout for tests
+
+  api_caller:
+    default_timeout: 5
