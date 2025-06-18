@@ -14,103 +14,172 @@ MCP Server is a configurable server designed to execute various tools such as sc
 *   **Enhanced Logging**: Multi-level logging to console and rotating log files.
 *   **Service Deployment**: Includes documentation for deployment as a systemd service using Gunicorn.
 
-## Getting Started
+## Getting Started: Running MCP Server Locally
 
-### Prerequisites
+This guide will walk you through setting up and running the MCP Server on your local machine for development or testing purposes.
 
-*   Python 3.8+
-*   `pip` (Python package installer)
-*   `git` (for cloning)
+### 1. Prerequisites
 
-### Installation
+*   **Python**: Version 3.8 or newer is required. Verify with \`python3 --version\`.
+*   **pip**: The Python package installer. Usually comes with Python.
+*   **git**: For cloning the repository (if you're obtaining the code this way).
 
-1.  **Clone the repository (optional, if you have it as a project):**
+### 2. Installation
+
+a.  **Clone the Repository (if applicable):**
+    If you have the MCP Server code in a git repository:
     \`\`\`bash
-    git clone <your-repo-url> mcp-server
+    git clone <your-repository-url> mcp-server
     cd mcp-server
     \`\`\`
-    If you downloaded the source directly, navigate to the project root directory.
+    If you downloaded the source code directly, navigate to the project's root directory.
 
-2.  **Create and activate a virtual environment (recommended):**
+b.  **Create and Activate a Python Virtual Environment (Highly Recommended):**
+    This keeps your project dependencies isolated.
     \`\`\`bash
     python3 -m venv venv
-    source venv/bin/activate  # On Windows: venv\Scripts\activate
+    source venv/bin/activate  # On Windows: venv\\Scripts\\activate
     \`\`\`
+    You should see \`(venv)\` at the beginning of your command prompt.
 
-3.  **Install dependencies:**
+c.  **Install Dependencies:**
+    Install all necessary Python packages.
     \`\`\`bash
     pip install -r requirements.txt
     \`\`\`
 
-### Configuration
+### 3. Initial Configuration (Critical First Step!)
 
-1.  **Create `config/config.yaml`:**
-    If it doesn't exist, copy `config/config.yaml.example` (if provided) or create a new one.
-    A minimal `config/config.yaml` might look like this:
+Before you can run the server, you **must** create and populate a configuration file.
+
+a.  **Create \`config/config.yaml\`:**
+    Navigate to the \`config/\` directory within the project. If a \`config.yaml.example\` file exists, you can copy it to \`config.yaml\`. Otherwise, create a new file named \`config.yaml\`.
+
+b.  **Populate Minimum Required Fields:**
+    Open \`config/config.yaml\` in a text editor and ensure the following fields are correctly set. These are essential for the server to start and function securely:
 
     \`\`\`yaml
     server:
-      host: "0.0.0.0"
+      host: "0.0.0.0"  # Or "127.0.0.1" to restrict to local machine
       port: 5000
-      debug: true # Set to false in production
+      debug: true       # Set to false in production
       enable_web_ui: true
-      # IMPORTANT: Change this in your production environment!
-      secret_key: "your_very_secret_and_complex_key_for_flask_sessions"
+      # IMPORTANT: Change this to a long, random, unique string!
+      secret_key: "REPLACE_THIS_WITH_A_VERY_SECRET_KEY"
 
     web_auth:
-      username: "admin"
-      # Generate a hash for your password (see below)
-      password_hash: "pbkdf2:sha256:260000\$yourSalt\$yourHash..."
+      username: "admin" # Default username, you can change this
+      # IMPORTANT: Generate a password hash for your chosen password (see next step)
+      password_hash: "REPLACE_THIS_WITH_GENERATED_PASSWORD_HASH"
 
     api_auth:
-      # Static token for API authentication. Generate a secure random string.
-      # Example: openssl rand -hex 32
-      static_token: "your_secure_api_token_here" # CHANGE THIS!
-      # Header name for the API token. Default is 'X-API-KEY'.
-      # header_name: "X-API-KEY"
+      # IMPORTANT: Generate a secure random token for API access (see next step)
+      static_token: "REPLACE_THIS_WITH_YOUR_SECURE_API_TOKEN"
+      # Optional: Change if you want to use a different header for the API token
+      # header_name: "X-API-KEY" # Default is X-API-KEY
+      # Or use:
+      # header_name: "Authorization" # Then token should be "Bearer <your_token>"
 
-    logging:
+    logging: # Default logging settings, can be adjusted later
       level: "INFO"
       file: "mcp_server.log"
-      format: "%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s"
-      max_bytes: 10485760 # 10MB
-      backup_count: 5
+      # format: "%(asctime)s - %(name)s - %(levelname)s - %(module)s:%(lineno)d - %(message)s"
+      # max_bytes: 10485760 # 10MB
+      # backup_count: 5
 
     tools:
-      script_runner:
-        scripts_base_path: "/app/mcp_scripts" # Path to your scripts
-        default_timeout: 60 # Default timeout for scripts
-      api_caller:
-        default_connect_timeout: 10 # Default connect timeout for API calls
-        default_read_timeout: 30    # Default read timeout for API calls
+      # Optional: Example tool configuration. Add if you use these tools.
+      # script_runner:
+      #   scripts_base_path: "/app/mcp_scripts" # Ensure this path exists and is accessible
+      #   default_timeout: 60
+      # api_caller:
+      #   default_connect_timeout: 10
+      #   default_read_timeout: 30
     \`\`\`
 
-2.  **Set `secret_key`**: Update `server.secret_key` in `config/config.yaml` with a long, random string.
+c.  **Generate Secure Credentials:**
 
-3.  **Set Web Authentication Credentials**:
-    *   Update `web_auth.username`.
-    *   Generate a password hash for `web_auth.password_hash` using the utility:
-        \`\`\`bash
-        # Ensure your virtual environment is active
-        python mcp_server/utils/hash_password.py
-        \`\`\`
-        Enter your desired password when prompted, and copy the generated hash into `config.yaml`.
+    *   **`server.secret_key`**: Replace \`"REPLACE_THIS_WITH_A_VERY_SECRET_KEY"\` with a long, random string. You can generate one using Python:
+        \`python -c 'import secrets; print(secrets.token_hex(32))'\`
 
-4.  **Set API Authentication Token**:
-    *   Update `api_auth.static_token` in `config/config.yaml` with a strong, unique, and randomly generated token.
-    *   (Optional) Customize `api_auth.header_name` if you prefer a different header for the API token.
+    *   **`web_auth.password_hash`**:
+        1.  Choose a strong password for the web interface user (\`admin\` or your chosen username).
+        2.  Run the provided utility script (make sure your virtual environment is active):
+            \`\`\`bash
+            python mcp_server/utils/hash_password.py
+            \`\`\`
+        3.  Enter your chosen password when prompted. The script will output a hash string.
+        4.  Copy this entire hash string and replace \`"REPLACE_THIS_WITH_GENERATED_PASSWORD_HASH"\` in your \`config.yaml\`.
 
-### Running the Development Server
+    *   **`api_auth.static_token`**:
+        1.  Generate a strong, random token for API authentication. You can use a command like:
+            \`\`\`bash
+            openssl rand -hex 32
+            \`\`\`
+        2.  Copy this token and replace \`"REPLACE_THIS_WITH_YOUR_SECURE_API_TOKEN"\` in your \`config.yaml\`. **Keep this token secure, like a password.**
 
-\`\`\`bash
-# Ensure your virtual environment is active
-python mcp_server/app.py --port 5000
-\`\`\`
-The server will start, and you can access it at \`http://localhost:5000\` (or the configured host/port).
+### 4. Running the Server Locally (for Development/Testing)
+
+Once your \`config/config.yaml\` is correctly set up:
+
+a.  **Navigate to the project root directory** (where \`mcp_server\` directory and \`requirements.txt\` are located).
+b.  **Ensure your virtual environment is active** (\`(venv)\` should be in your prompt).
+c.  **Run the application:**
+    \`\`\`bash
+    python mcp_server/app.py
+    \`\`\`
+    You can also specify a port if needed (though it's configured in \`config.yaml\`):
+    \`\`\`bash
+    python mcp_server/app.py --port 5001
+    \`\`\`
+
+d.  **Verify it's running:**
+    You should see output in your terminal indicating the server has started, similar to:
+    \`\`\`
+    INFO:mcp_server.app:MCP Server starting on 0.0.0.0:5000. Web UI enabled: True. API Auth Token Set: True
+     * Serving Flask app 'app'
+     * Debug mode: on  # Or off, depending on your config
+    INFO:werkzeug:Werkzeug Dev Server running on http://0.0.0.0:5000/
+    Press CTRL+C to quit
+    \`\`\`
+    (The exact output might vary based on your logging configuration and Flask version.)
+
+e.  **Access the Server:**
+    *   **Web Interface**: Open your web browser and go to \`http://localhost:5000\` (or the host/port you configured). Log in with the username and password you set up.
+    *   **API**: The API endpoints (e.g., \`/tools\`, \`/tools/<tool_name>/execute\`) are available at the same address. Remember to include your API token in the request headers (see 'HTTP API' section below).
+
+**Important Note on Usage:**
+The method described above (\`python mcp_server/app.py\`) uses Flask's built-in development server.
+While convenient for local development and testing, it is **not suitable for production environments** due to performance and security limitations.
+For production deployment, please refer to the **[Deployment for Production](#deployment-for-production)** section below, which guides you on using a robust WSGI server like Gunicorn and managing the application as a system service.
+
+This local setup is intended for development, testing, and getting familiar with the server. For production use, please refer to the deployment guide.
+
+## Deployment for Production
+
+Running the MCP Server using \`python mcp_server/app.py\` utilizes Flask's built-in development server. **This is NOT suitable for production environments.**
+
+For production deployments, you should:
+1.  Use a production-grade WSGI server (like **Gunicorn**, which is included in \`requirements.txt\`).
+2.  Run the application as a system service (e.g., using **systemd** on Linux).
+3.  Consider using a reverse proxy (like Nginx or Apache) for HTTPS, serving static files, and other benefits.
+
+**Detailed instructions for setting up a production environment are available in the [Deployment Guide](docs/deployment.md).**
 
 ## Configuration Overview
 
-The server is configured primarily through \`config/config.yaml\`. Key sections:
+The MCP Server is primarily configured via the \`config/config.yaml\` file. This file is organized into several key sections.
+
+The server loads configuration settings in the following order of precedence (each step overrides the previous):
+1.  **Default values** hardcoded in the application (`mcp_server/config.py`).
+2.  Values from the **\`config/config.yaml\`** file.
+3.  Values from **environment variables** (e.g., \`MCP_SERVER_PORT\`, \`MCP_API_STATIC_TOKEN\`).
+4.  Values from **command-line arguments** (e.g., \`--port\`, \`--disable-web-ui\`).
+
+This means that environment variables will override settings in \`config.yaml\`, and command-line arguments will override both.
+For most persistent settings, you should use \`config/config.yaml\`.
+
+Key configuration sections in \`config/config.yaml\`:
 *   **`server`**: Host, port, debug mode, web UI toggle, Flask secret key.
 *   **`web_auth`**: Username and hashed password for the web interface.
 *   **`api_auth`**: Configuration for API token authentication, including `static_token` and `header_name`.
@@ -132,6 +201,12 @@ Settings can also be overridden by environment variables (e.g., \`MCP_SERVER_POR
 The server exposes an HTTP API, **which requires token authentication for all endpoints except \`/health\`**.
 The API token must be passed in a request header. By default, this is \`X-API-KEY: <your_token>\`.
 This can be configured via \`api_auth.header_name\` in \`config.yaml\` (e.g., to use \`Authorization: Bearer <your_token>\`).
+
+To use the API:
+1.  **Find your API Token**: The \`static_token\` you configured in \`config/config.yaml\` (under the \`api_auth\` section) or set via the \`MCP_API_STATIC_TOKEN\` environment variable.
+2.  **Include the Token in Headers**:
+    *   If using the default \`header_name: "X-API-KEY"\` (or if \`header_name\` is set to something custom), add a header like: \`<Your-Header-Name>: <your_static_token>\`.
+    *   If you configured \`header_name: "Authorization"\`, add a header like: \`Authorization: Bearer <your_static_token>\`.
 
 Key endpoints:
 *   **`GET /tools`**: Lists all available tools, their descriptions, and parameter specifications.
